@@ -1,3 +1,13 @@
+COULEURS = ['♠', '♥', '♦', '♣']
+VALEURS = ['A'] + [str(n) for n in range(2, 11)] + ['J', 'Q', 'K']
+LARGEUR_CARTE = 60
+HAUTEUR_CARTE = 90
+ESPACE_X = 20
+ESPACE_Y = 20
+DEPART_X = 50
+DEPART_Y = 150
+NOMBRE_PILES = 7
+
 class JeuSolitaire:
     def __init__(self, fenetre):
         self.fenetre = fenetre
