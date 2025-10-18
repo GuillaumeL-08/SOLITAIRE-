@@ -168,6 +168,10 @@ class JeuSolitaire:
     def debut_glisser(self, event, carte, provenance):
         if not carte.visible:
             return
+        
+        if provenance == "defausse" and self.defausse.sommet() != carte:
+        # ignore les cartes non-sommet de la défausse
+            return
 
         # Déterminer la provenance
         if self.pioche.sommet() == carte:
@@ -352,8 +356,9 @@ class JeuSolitaire:
 
         # --- Vérification du mouvement ---
         if dest.est_vide():
-            if cartes_a_bouger[0].valeur != "K":
-                # Impossible de déposer autre chose qu'un Roi sur une pile vide
+            # Autoriser le Roi ou une carte provenant des fondations
+            if cartes_a_bouger[0].valeur != "K" and not isinstance(source, Pile):
+                # Impossible de déposer autre chose qu'un Roi depuis le tableau/pioche/defausse
                 for c in cartes_a_bouger:
                     if isinstance(source, File):
                         source.enfiler(c)
