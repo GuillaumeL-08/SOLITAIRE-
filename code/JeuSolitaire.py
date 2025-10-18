@@ -159,7 +159,7 @@ class JeuSolitaire:
                 img_id = self.canvas.create_image(x, y, anchor="nw", image=img, tags=(tag, "carte"))
                 self.objets_cartes[carte] = (img_id,)
 
-                if draggable and index_pile is not None:
+                if draggable and index_pile is not None or (tag.startswith("fondation_") and carte.visible):
                     self.canvas.tag_bind(img_id, "<ButtonPress-1>", lambda e, c=carte, p=index_pile: self.debut_glisser(e, c, p))
                     self.canvas.tag_bind(img_id, "<B1-Motion>", self.mouvement_glisser)
                     self.canvas.tag_bind(img_id, "<ButtonRelease-1>", self.fin_glisser)
@@ -174,7 +174,17 @@ class JeuSolitaire:
             provenance = "pioche"
         elif self.defausse.sommet() == carte:
             provenance = "defausse"
-        # sinon provenance est déjà un index (tableau)
+        else:
+            # vérifier si c'est dans le tableau
+            for i, file in enumerate(self.tableau):
+                if carte in file.p:
+                    provenance = i
+                    break
+            # vérifier si c'est le sommet d'une fondation
+            for coul, pile in self.fondations.items():
+                if pile.sommet() == carte:
+                    provenance = f"fondation_{coul}"
+                    break
 
         # Si carte dans le tableau, prendre toutes les cartes visibles à partir de celle-ci
         cartes_a_bouger = [carte]
@@ -188,11 +198,11 @@ class JeuSolitaire:
         for c in cartes_a_bouger:
             items.extend(self.objets_cartes.get(c, ()))
 
-        # 🔹 S'assurer que la carte (ou le groupe) est au-dessus de toutes les autres
+        # S'assurer que la carte (ou le groupe) est au-dessus de toutes les autres
         for obj in items:
             self.canvas.tag_raise(obj)
 
-        # 🔹 Enregistrer les données du drag
+        # Enregistrer les données du drag
         self.donnees_glisser.update({
             "items": items,
             "cartes": cartes_a_bouger,
@@ -238,7 +248,7 @@ class JeuSolitaire:
                 if self.tableau[pile_idx].taille() > ancien_taille:
                     deplacement_valide = True
 
-        # 🔹 Si le déplacement n’est pas valide → remettre la carte dans sa pile d’origine
+        # Si le déplacement n’est pas valide → remettre la carte dans sa pile d’origine
         if not deplacement_valide:
             if provenance == "defausse":
                 for c in cartes:
@@ -253,13 +263,19 @@ class JeuSolitaire:
                 for c in cartes:
                     if c not in file_source.p:
                         file_source.enfiler(c)
+            elif isinstance(provenance, str) and provenance.startswith("fondation_"):
+                couleur = provenance.split("_")[1]
+                pile_source = self.fondations[couleur]
+                for c in cartes:
+                    if c not in pile_source.pile:
+                        pile_source.empiler(c)
 
-        # 🔹 Supprimer les images temporaires du drag
+        # Supprimer les images temporaires du drag
         if data["items"]:
             for obj in data["items"]:
                 self.canvas.delete(obj)
 
-        # 🔹 Réinitialiser le drag et redessiner
+        # Réinitialiser le drag et redessiner
         self.donnees_glisser = {"items": None, "cartes": None, "x": 0, "y": 0, "provenance": None}
         self.afficher_tout()
 
@@ -302,25 +318,26 @@ class JeuSolitaire:
     def deplacer_vers_tableau(self, carte, provenance, destination):
         dest = self.tableau[destination]
 
-        # déterminer la source
+        # --- Déterminer la source ---
         if provenance == "defausse":
             source = self.defausse
         elif provenance == "pioche":
             source = self.pioche
+        elif isinstance(provenance, str) and provenance.startswith("fondation_"):
+            couleur = provenance.split("_")[1]
+            source = self.fondations[couleur]
         elif isinstance(provenance, int):
             source = self.tableau[provenance]
         else:
             return
 
-        # --- extraire les cartes à bouger ---
+        # --- Extraire les cartes à bouger ---
         cartes_a_bouger = []
         if isinstance(source, Pile):
             if source.sommet() != carte:
                 return
             cartes_a_bouger = [source.depiler()]
-
         elif isinstance(source, File):
-            # On vide la file jusqu’à trouver la carte
             tampon = File()
             trouve = False
             while not source.est_vide():
@@ -330,39 +347,41 @@ class JeuSolitaire:
                     cartes_a_bouger.append(c)
                 else:
                     tampon.enfiler(c)
-            # on remet les cartes du tampon dans la source
             while not tampon.est_vide():
                 source.enfiler(tampon.defiler())
 
-        # --- vérification du mouvement ---
+        # --- Vérification du mouvement ---
         if dest.est_vide():
             if cartes_a_bouger[0].valeur != "K":
+                # Impossible de déposer autre chose qu'un Roi sur une pile vide
                 for c in cartes_a_bouger:
-                    source.enfiler(c)
-                    return
+                    if isinstance(source, File):
+                        source.enfiler(c)
+                    else:
+                        source.empiler(c)
+                return
         else:
             haut = dest.p[-1]
             if not self.deplacement_valide(cartes_a_bouger[0], haut):
                 for c in cartes_a_bouger:
                     if isinstance(source, File):
                         source.enfiler(c)
-                    else:  # Pile
+                    else:
                         source.empiler(c)
                 return
 
-        # --- déplacement vers la destination ---
+        # --- Déplacement vers la destination ---
         for c in cartes_a_bouger:
             if isinstance(dest, File):
                 dest.enfiler(c)
-            else:  # Pile
+            else:
                 dest.empiler(c)
 
-        # --- rendre visible la nouvelle carte de la source ---
+        # --- Rendre visible la nouvelle carte de la source ---
         if isinstance(source, File) and not source.est_vide():
             source.p[-1].visible = True
         elif isinstance(source, Pile) and not source.est_vide():
             source.sommet().visible = True
-
 
     def deplacement_valide(self, carte_bougee, carte_cible):
         couleur1 = "rouge" if carte_bougee.couleur in ['♥','♦'] else "noir"
