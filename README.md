@@ -1,2 +1,2 @@
 # SOLITAIRE-
-solitaire kevin merlin
+Kevin HU Guillaume Laborde Merlin Soulie
