@@ -92,66 +92,77 @@ class JeuSolitaire:
 
     # ---------- Affichage ----------
     def afficher_tout(self):
-        self.canvas.delete("carte")
-        self.canvas.delete("texte")
+            # On efface uniquement les anciennes cartes et textes pour tout redessiner
+            self.canvas.delete("carte")
+            self.canvas.delete("texte")
 
-        # Fondations avec petites figures
-        for i, couleur in enumerate(COULEURS):
-            x = DEPART_X + (3 + i) * (LARGEUR_CARTE + ESPACE_X)
-            y = 20
+            # --- Fondations ---
+            for i, couleur in enumerate(COULEURS):
+                x = DEPART_X + (3 + i) * (LARGEUR_CARTE + ESPACE_X)
+                y = 20
 
-            self.canvas.create_text(
-                x + LARGEUR_CARTE//2, y - 10,
-                text=couleur,
-                font=("Helvetica", 16, "bold"),
-                fill="white",
-                tags="texte"
+                self.canvas.create_text(
+                    x + LARGEUR_CARTE//2, y - 10,
+                    text=couleur,
+                    font=("Helvetica", 16, "bold"),
+                    fill="white",
+                    tags="texte"
+                )
+
+                carte_haut = self.fondations[couleur].sommet()
+                self.afficher_carte(x, y, carte_haut, tag=f"fondation_{couleur}")
+
+            # --- Pioche ---
+            carte_pioche = self.pioche.sommet()
+            self.afficher_carte(DEPART_X, 20, carte_pioche, tag="pioche", face_cachee=(not self.pioche.est_vide()))
+
+            # Zone cliquable pour piocher
+            zone_pioche = self.canvas.create_rectangle(
+                DEPART_X, 20, DEPART_X + LARGEUR_CARTE, 20 + HAUTEUR_CARTE,
+                outline="", fill="", tags="zone_pioche"
             )
+            self.canvas.tag_bind(zone_pioche, "<Button-1>", lambda e: self.clic_pioche())
 
-            carte_haut = self.fondations[couleur].sommet()
-            self.afficher_carte(x, y, carte_haut, tag=f"fondation_{couleur}")
+            # --- Défausse (afficher les 3 dernières cartes) ---
+            cartes_defausse = self.defausse.pile[-3:]
+            x0 = DEPART_X + LARGEUR_CARTE + ESPACE_X
+            for i, carte in enumerate(cartes_defausse):
+                draggable = (i == len(cartes_defausse) - 1)
+                self.afficher_carte(
+                    x0 + i * 20, 20, carte,
+                    tag="defausse",
+                    index_pile=None if not draggable else "defausse"
+                )
 
-        # Pioche
-        carte_pioche = self.pioche.sommet()
-        self.afficher_carte(DEPART_X, 20, carte_pioche, tag="pioche", face_cachee=(carte_pioche is not None))
+            # --- Tableau principal ---
+            for idx_file, file in enumerate(self.tableau):
+                x = DEPART_X + idx_file * (LARGEUR_CARTE + ESPACE_X)
+                y = DEPART_Y
+                for carte in file.p:
+                    self.afficher_carte(x, y, carte, index_pile=idx_file)
+                    y += ESPACE_Y
 
-        zone_pioche = self.canvas.create_rectangle(
-            DEPART_X, 20, DEPART_X+LARGEUR_CARTE, 20+HAUTEUR_CARTE,
-            outline="", fill="", tags="zone_pioche"
-        )
-        self.canvas.tag_bind(zone_pioche, "<Button-1>", lambda e: self.clic_pioche())
+    def afficher_carte(self, x, y, carte, tag="carte", face_cachee=False, index_pile=None, draggable=True):
+            if carte is None:
+                self.canvas.create_rectangle(x, y, x+LARGEUR_CARTE, y+HAUTEUR_CARTE, fill="gray", tags=tag)
+                return
 
-        # Défausse
-        carte_defausse = self.defausse.sommet()
-        self.afficher_carte(DEPART_X+LARGEUR_CARTE+ESPACE_X, 20, carte_defausse, tag="defausse")
+            img = self.img_face_cachee if face_cachee or not carte.visible else \
+                self.images_cartes.get(f"{carte.valeur}{carte.couleur}", self.img_face_cachee)
 
-        # Tableau
-        for idx_file, file in enumerate(self.tableau):
-            x = DEPART_X + idx_file * (LARGEUR_CARTE + ESPACE_X)
-            y = DEPART_Y
-            for carte in file.p:
-                self.afficher_carte(x, y, carte, index_pile=idx_file)
-                y += ESPACE_Y
+            if img is None:
+                rect = self.canvas.create_rectangle(
+                    x, y, x+LARGEUR_CARTE, y+HAUTEUR_CARTE,
+                    fill="white", tags=(tag, "carte")
+                )
+            else:
+                img_id = self.canvas.create_image(x, y, anchor="nw", image=img, tags=(tag, "carte"))
+                self.objets_cartes[carte] = (img_id,)
 
-    def afficher_carte(self, x, y, carte, tag="carte", face_cachee=False, index_pile=None):
-        if carte is None:
-            self.canvas.create_rectangle(x, y, x+LARGEUR_CARTE, y+HAUTEUR_CARTE, fill="gray", tags=tag)
-            return
-
-        if face_cachee or not carte.visible:
-            img = self.img_face_cachee
-        else:
-            img = self.images_cartes.get(f"{carte.valeur}{carte.couleur}", self.img_face_cachee)
-
-        if img is None:
-            rect = self.canvas.create_rectangle(x, y, x+LARGEUR_CARTE, y+HAUTEUR_CARTE, fill="white", tags=(tag,"carte"))
-        else:
-            img_id = self.canvas.create_image(x, y, anchor="nw", image=img, tags=(tag,"carte"))
-            self.objets_cartes[carte] = (img_id,)
-
-            self.canvas.tag_bind(img_id, "<ButtonPress-1>", lambda e,c=carte,p=index_pile: self.debut_glisser(e,c,p))
-            self.canvas.tag_bind(img_id, "<B1-Motion>", self.mouvement_glisser)
-            self.canvas.tag_bind(img_id, "<ButtonRelease-1>", self.fin_glisser)
+                if draggable and index_pile is not None:
+                    self.canvas.tag_bind(img_id, "<ButtonPress-1>", lambda e, c=carte, p=index_pile: self.debut_glisser(e, c, p))
+                    self.canvas.tag_bind(img_id, "<B1-Motion>", self.mouvement_glisser)
+                    self.canvas.tag_bind(img_id, "<ButtonRelease-1>", self.fin_glisser)
 
     # ---------- Drag & Drop ----------
     def debut_glisser(self, event, carte, provenance):
@@ -177,6 +188,11 @@ class JeuSolitaire:
         for c in cartes_a_bouger:
             items.extend(self.objets_cartes.get(c, ()))
 
+        # 🔹 S'assurer que la carte (ou le groupe) est au-dessus de toutes les autres
+        for obj in items:
+            self.canvas.tag_raise(obj)
+
+        # 🔹 Enregistrer les données du drag
         self.donnees_glisser.update({
             "items": items,
             "cartes": cartes_a_bouger,
@@ -184,6 +200,7 @@ class JeuSolitaire:
             "y": event.y,
             "provenance": provenance
         })
+
 
     def mouvement_glisser(self, event):
         data = self.donnees_glisser
@@ -202,37 +219,47 @@ class JeuSolitaire:
             return
 
         carte_principale = cartes[0]
+        deplacement_valide = False
 
         # Vérifier si on lâche sur une fondation
         couleur_fond = self.obtenir_fondation(event.x, event.y)
         if couleur_fond:
+            ancien_taille = self.fondations[couleur_fond].taille()
             self.deplacer_vers_fondation(carte_principale, provenance, couleur_fond)
+            if self.fondations[couleur_fond].taille() > ancien_taille:
+                deplacement_valide = True
+
         else:
             # Sinon, sur le tableau
             pile_idx = self.obtenir_index_tableau(event.x)
             if pile_idx is not None:
+                ancien_taille = self.tableau[pile_idx].taille()
                 self.deplacer_vers_tableau(carte_principale, provenance, pile_idx)
-            else:
-                # Carte lâchée nulle part → remettre dans la pile d'origine
-                if provenance == "pioche":
-                    if self.pioche.sommet() == carte_principale:
-                        pass  # rien à faire
-                    else:
-                        self.defausse.empiler(carte_principale)
-                elif provenance == "defausse":
-                    pass
-                elif isinstance(provenance, int):
-                    file_source = self.tableau[provenance]
-                    for c in cartes:
-                        if c not in file_source.p:
-                            file_source.p.append(c)
+                if self.tableau[pile_idx].taille() > ancien_taille:
+                    deplacement_valide = True
 
-        #  Supprimer les images temporaires du drag
+        # 🔹 Si le déplacement n’est pas valide → remettre la carte dans sa pile d’origine
+        if not deplacement_valide:
+            if provenance == "defausse":
+                for c in cartes:
+                    if c not in self.defausse.pile:
+                        self.defausse.empiler(c)
+            elif provenance == "pioche":
+                for c in cartes:
+                    if c not in self.pioche.pile:
+                        self.pioche.empiler(c)
+            elif isinstance(provenance, int):
+                file_source = self.tableau[provenance]
+                for c in cartes:
+                    if c not in file_source.p:
+                        file_source.enfiler(c)
+
+        # 🔹 Supprimer les images temporaires du drag
         if data["items"]:
             for obj in data["items"]:
                 self.canvas.delete(obj)
 
-        #  Réinitialiser le drag et redessiner
+        # 🔹 Réinitialiser le drag et redessiner
         self.donnees_glisser = {"items": None, "cartes": None, "x": 0, "y": 0, "provenance": None}
         self.afficher_tout()
 
@@ -275,7 +302,7 @@ class JeuSolitaire:
     def deplacer_vers_tableau(self, carte, provenance, destination):
         dest = self.tableau[destination]
 
-        # Déterminer la source
+        # déterminer la source
         if provenance == "defausse":
             source = self.defausse
         elif provenance == "pioche":
@@ -285,36 +312,57 @@ class JeuSolitaire:
         else:
             return
 
-        # Extraire le bloc de cartes à déplacer
+        # --- extraire les cartes à bouger ---
+        cartes_a_bouger = []
         if isinstance(source, Pile):
             if source.sommet() != carte:
                 return
             cartes_a_bouger = [source.depiler()]
-        else:
-            idx = source.p.index(carte)
-            cartes_a_bouger = source.p[idx:]
-            source.p = source.p[:idx]
 
-        # Vérifier si le mouvement est valide
+        elif isinstance(source, File):
+            # On vide la file jusqu’à trouver la carte
+            tampon = File()
+            trouve = False
+            while not source.est_vide():
+                c = source.defiler()
+                if c == carte or trouve:
+                    trouve = True
+                    cartes_a_bouger.append(c)
+                else:
+                    tampon.enfiler(c)
+            # on remet les cartes du tampon dans la source
+            while not tampon.est_vide():
+                source.enfiler(tampon.defiler())
+
+        # --- vérification du mouvement ---
         if dest.est_vide():
             if cartes_a_bouger[0].valeur != "K":
-                # Déplacement invalide → remettre les cartes à la source
-                source.p.extend(cartes_a_bouger) if isinstance(source, File) else source.empiler(cartes_a_bouger[0])
-                return
+                for c in cartes_a_bouger:
+                    source.enfiler(c)
+                    return
         else:
             haut = dest.p[-1]
             if not self.deplacement_valide(cartes_a_bouger[0], haut):
-                source.p.extend(cartes_a_bouger) if isinstance(source, File) else source.empiler(cartes_a_bouger[0])
+                for c in cartes_a_bouger:
+                    if isinstance(source, File):
+                        source.enfiler(c)
+                    else:  # Pile
+                        source.empiler(c)
                 return
 
-        # Ajouter les cartes à la destination
-        dest.p.extend(cartes_a_bouger)
+        # --- déplacement vers la destination ---
+        for c in cartes_a_bouger:
+            if isinstance(dest, File):
+                dest.enfiler(c)
+            else:  # Pile
+                dest.empiler(c)
 
-        # Rendre visible la nouvelle carte du sommet dans la pile source
-        if isinstance(source, File) and source.p:
+        # --- rendre visible la nouvelle carte de la source ---
+        if isinstance(source, File) and not source.est_vide():
             source.p[-1].visible = True
         elif isinstance(source, Pile) and not source.est_vide():
             source.sommet().visible = True
+
 
     def deplacement_valide(self, carte_bougee, carte_cible):
         couleur1 = "rouge" if carte_bougee.couleur in ['♥','♦'] else "noir"
@@ -326,17 +374,15 @@ class JeuSolitaire:
     # ---------- Pioche ----------
     def clic_pioche(self):
         if not self.pioche.est_vide():
-            carte = self.pioche.depiler()
-            carte.visible=True
-            self.defausse.empiler(carte)
-            # Déplacer visuellement la carte vers la défausse
-            self.afficher_tout()
-
+            nb = min(3, self.pioche.taille())
+            for _ in range(nb):
+                carte = self.pioche.depiler()
+                carte.visible = True
+                self.defausse.empiler(carte)
         else:
-            temp=[]
+            # Remettre la défausse dans la pioche
             while not self.defausse.est_vide():
-                c=self.defausse.depiler()
-                c.visible=False
-                temp.append(c)
-            for c in temp: self.pioche.empiler(c)
+                carte = self.defausse.depiler()
+                carte.visible = False
+                self.pioche.empiler(carte)
         self.afficher_tout()
