@@ -1,3 +1,5 @@
+from JeuSolitaire import *
+
 if __name__ == "__main__":
     fenetre = tk.Tk()
     fenetre.title("Jeu de Solitaire")
