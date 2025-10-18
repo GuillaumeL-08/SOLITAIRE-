@@ -1,3 +1,9 @@
+import tkinter as tk
+import random
+from Carte import *
+from File import *
+from Pile import *
+
 COULEURS = ['♠', '♥', '♦', '♣']
 VALEURS = ['A'] + [str(n) for n in range(2, 11)] + ['J', 'Q', 'K']
 LARGEUR_CARTE = 60
