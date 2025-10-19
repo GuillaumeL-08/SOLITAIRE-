@@ -42,16 +42,14 @@ class JeuSolitaire:
         nom_couleur = {'♣':'trefle', '♠':'pique', '♥':'coeur', '♦':'carreau'}
         nom_valeur = {'A':'as', 'J':'valet', 'Q':'dame', 'K':'roi'}
 
-        current_directory = os.path.dirname(os.path.abspath(__file__))
-
         # Chargement des images cartes visibles
         self.images_cartes = {}
         for couleur in COULEURS:
             for valeur in VALEURS:
                 val = nom_valeur.get(valeur, valeur)
                 coul = nom_couleur[couleur]
-                nom_fichier = f"{val}_{coul}.gif"  # ou .png si nécessaire
-                chemin = os.path.join(current_directory, "cartes", nom_fichier)
+                nom_fichier = f"{val}_{coul}.gif"  
+                chemin = os.path.join("cartes", nom_fichier)
                 try:
                     img = Image.open(chemin)
                     # Redimensionner à la taille des cartes
@@ -63,7 +61,7 @@ class JeuSolitaire:
 
         # Image face cachée
         try:
-            img = Image.open(os.path.join(current_directory, "cartes", "back.jpeg"))
+            img = Image.open(os.path.join("cartes", "back.jpeg"))
             img = img.resize((LARGEUR_CARTE, HAUTEUR_CARTE), Image.Resampling.LANCZOS)
             self.img_face_cachee = ImageTk.PhotoImage(img)
         except Exception as e:
@@ -92,13 +90,13 @@ class JeuSolitaire:
             self.pioche.empiler(carte)
         self.cartes = []
 
-    # ---------- Affichage ----------
+    # Affichage 
     def afficher_tout(self):
             # On efface uniquement les anciennes cartes et textes pour tout redessiner
             self.canvas.delete("carte")
             self.canvas.delete("texte")
 
-            # --- Fondations ---
+            #les Fondations
             for i, couleur in enumerate(COULEURS):
                 x = DEPART_X + (3 + i) * (LARGEUR_CARTE + ESPACE_X)
                 y = 20
@@ -114,7 +112,7 @@ class JeuSolitaire:
                 carte_haut = self.fondations[couleur].sommet()
                 self.afficher_carte(x, y, carte_haut, tag=f"fondation_{couleur}")
 
-            # --- Pioche ---
+            # Pioche 
             carte_pioche = self.pioche.sommet()
             self.afficher_carte(DEPART_X, 20, carte_pioche, tag="pioche", face_cachee=(not self.pioche.est_vide()))
 
@@ -125,7 +123,7 @@ class JeuSolitaire:
             )
             self.canvas.tag_bind(zone_pioche, "<Button-1>", lambda e: self.clic_pioche())
 
-            # --- Défausse (afficher les 3 dernières cartes) ---
+            # Défausse (afficher les 3 dernières cartes) 
             cartes_defausse = self.defausse.pile[-3:]
             x0 = DEPART_X + LARGEUR_CARTE + ESPACE_X
             for i, carte in enumerate(cartes_defausse):
@@ -136,7 +134,7 @@ class JeuSolitaire:
                     index_pile=None if not draggable else "defausse"
                 )
 
-            # --- Tableau principal ---
+            # Tableau principal 
             for idx_file, file in enumerate(self.tableau):
                 x = DEPART_X + idx_file * (LARGEUR_CARTE + ESPACE_X)
                 y = DEPART_Y
@@ -166,7 +164,7 @@ class JeuSolitaire:
                     self.canvas.tag_bind(img_id, "<B1-Motion>", self.mouvement_glisser)
                     self.canvas.tag_bind(img_id, "<ButtonRelease-1>", self.fin_glisser)
 
-    # ---------- Drag & Drop ----------
+    #Drag and Drop
     def debut_glisser(self, event, carte, provenance):
         if not carte.visible:
             return
@@ -300,7 +298,7 @@ class JeuSolitaire:
                 return i
         return None
 
-    # ---------- Déplacements logiques ----------
+    # Déplacements logiques 
     def deplacer_vers_fondation(self, carte, provenance, couleur):
         fond = self.fondations[couleur]
         valeur_attendue = VALEURS[fond.taille()]
@@ -324,7 +322,7 @@ class JeuSolitaire:
     def deplacer_vers_tableau(self, carte, provenance, destination):
         dest = self.tableau[destination]
 
-        # --- Déterminer la source ---
+        # Déterminer la source
         if provenance == "defausse":
             source = self.defausse
         elif provenance == "pioche":
@@ -337,7 +335,7 @@ class JeuSolitaire:
         else:
             return
 
-        # --- Extraire les cartes à bouger ---
+        # Extraire les cartes à bouger 
         cartes_a_bouger = []
         if isinstance(source, Pile):
             if source.sommet() != carte:
@@ -356,7 +354,7 @@ class JeuSolitaire:
             while not tampon.est_vide():
                 source.enfiler(tampon.defiler())
 
-        # --- Vérification du mouvement ---
+        #  Vérification du mouvement
         if dest.est_vide():
             # Autoriser le Roi ou une carte provenant des fondations
             if cartes_a_bouger[0].valeur != "K" and not isinstance(source, Pile):
@@ -377,14 +375,14 @@ class JeuSolitaire:
                         source.empiler(c)
                 return
 
-        # --- Déplacement vers la destination ---
+        # Déplacement vers la destination 
         for c in cartes_a_bouger:
             if isinstance(dest, File):
                 dest.enfiler(c)
             else:
                 dest.empiler(c)
 
-        # --- Rendre visible la nouvelle carte de la source ---
+        # Rendre visible la nouvelle carte de la source 
         if isinstance(source, File) and not source.est_vide():
             source.p[-1].visible = True
         elif isinstance(source, Pile) and not source.est_vide():
@@ -397,7 +395,7 @@ class JeuSolitaire:
         valeurs_num = {v:i for i,v in enumerate(VALEURS,1)}
         return valeurs_num[carte_bougee.valeur] == valeurs_num[carte_cible.valeur]-1
 
-    # ---------- Pioche ----------
+    # Pioche 
     def clic_pioche(self):
         if not self.pioche.est_vide():
             nb = min(3, self.pioche.taille())
