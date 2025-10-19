@@ -42,6 +42,8 @@ class JeuSolitaire:
         nom_couleur = {'♣':'trefle', '♠':'pique', '♥':'coeur', '♦':'carreau'}
         nom_valeur = {'A':'as', 'J':'valet', 'Q':'dame', 'K':'roi'}
 
+        current_directory = os.path.dirname(os.path.abspath(__file__))
+
         # Chargement des images cartes visibles
         self.images_cartes = {}
         for couleur in COULEURS:
@@ -49,7 +51,7 @@ class JeuSolitaire:
                 val = nom_valeur.get(valeur, valeur)
                 coul = nom_couleur[couleur]
                 nom_fichier = f"{val}_{coul}.gif"  # ou .png si nécessaire
-                chemin = os.path.join("cartes", nom_fichier)
+                chemin = os.path.join(current_directory, "cartes", nom_fichier)
                 try:
                     img = Image.open(chemin)
                     # Redimensionner à la taille des cartes
@@ -61,7 +63,7 @@ class JeuSolitaire:
 
         # Image face cachée
         try:
-            img = Image.open(os.path.join("cartes", "back.jpeg"))
+            img = Image.open(os.path.join(current_directory, "cartes", "back.jpeg"))
             img = img.resize((LARGEUR_CARTE, HAUTEUR_CARTE), Image.Resampling.LANCZOS)
             self.img_face_cachee = ImageTk.PhotoImage(img)
         except Exception as e:
