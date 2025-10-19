@@ -19,7 +19,7 @@ ESPACE_Y = int(HAUTEUR_CARTE * 0.3)
 DEPART_X = ESPACE_X
 DEPART_Y = HAUTEUR_CARTE + ESPACE_Y
 
-def est_rouge(couleur):
+def est_rouge(couleur): 
     return couleur in ('♥', '♦')
 
 class JeuSolitaire:
@@ -71,15 +71,18 @@ class JeuSolitaire:
 
         self.initialiser_jeu()
 
+    # Initialisation du jeu
     def initialiser_jeu(self):
         self.creer_paquet()
         self.distribuer_cartes()
         self.afficher_tout()
 
+    # Création et distribution des cartes
     def creer_paquet(self):
         self.cartes = [Carte(c, v) for c in COULEURS for v in VALEURS]
         random.shuffle(self.cartes)
 
+    # Distribution des cartes dans le tableau et la pioche
     def distribuer_cartes(self):
         for i in range(NOMBRE_PILES):
             for j in range(i + 1):
@@ -142,6 +145,7 @@ class JeuSolitaire:
                     self.afficher_carte(x, y, carte, index_pile=idx_file)
                     y += ESPACE_Y
 
+    # Affichage d'une carte individuelle
     def afficher_carte(self, x, y, carte, tag="carte", face_cachee=False, index_pile=None, draggable=True):
             if carte is None:
                 self.canvas.create_rectangle(x, y, x+LARGEUR_CARTE, y+HAUTEUR_CARTE, fill="gray", tags=tag)
@@ -215,7 +219,7 @@ class JeuSolitaire:
             "provenance": provenance
         })
 
-
+    # Mouvement pendant le drag
     def mouvement_glisser(self, event):
         data = self.donnees_glisser
         if not data["items"]: return
@@ -225,6 +229,7 @@ class JeuSolitaire:
             self.canvas.move(obj, dx, dy)
         data["x"], data["y"] = event.x, event.y
 
+    # Fin du drag
     def fin_glisser(self, event):
         data = self.donnees_glisser
         cartes = data.get("cartes")
@@ -283,6 +288,7 @@ class JeuSolitaire:
         self.donnees_glisser = {"items": None, "cartes": None, "x": 0, "y": 0, "provenance": None}
         self.afficher_tout()
 
+    # Obtenir la fondation sous les coordonnées (x, y)
     def obtenir_fondation(self, x, y):
         for i,couleur in enumerate(COULEURS):
             fx = DEPART_X + (3+i)*(LARGEUR_CARTE+ESPACE_X)
@@ -291,6 +297,7 @@ class JeuSolitaire:
                 return couleur
         return None
 
+    # Obtenir l'index du tableau sous la coordonnée x
     def obtenir_index_tableau(self, x):
         for i in range(NOMBRE_PILES):
             pile_x = DEPART_X + i*(LARGEUR_CARTE+ESPACE_X)
@@ -388,6 +395,7 @@ class JeuSolitaire:
         elif isinstance(source, Pile) and not source.est_vide():
             source.sommet().visible = True
 
+    # Vérification de la validité du déplacement entre deux cartes
     def deplacement_valide(self, carte_bougee, carte_cible):
         couleur1 = "rouge" if carte_bougee.couleur in ['♥','♦'] else "noir"
         couleur2 = "rouge" if carte_cible.couleur in ['♥','♦'] else "noir"
